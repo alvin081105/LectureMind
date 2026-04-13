@@ -13,4 +13,13 @@ export const authApi = {
 
   me: () =>
     axiosInstance.get<{ id: number; email: string; name: string; role: string }>('/auth/me'),
+
+  updateProfile: (name: string) =>
+    axiosInstance.put<{ id: number; email: string; name: string; role: string }>('/auth/profile', { name }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    axiosInstance.put<void>('/auth/password', { currentPassword, newPassword }),
+
+  deleteAccount: (password: string) =>
+    axiosInstance.delete<void>('/auth/account', { data: { password } }),
 };

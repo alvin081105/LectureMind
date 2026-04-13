@@ -1,8 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import AppLayout from './components/common/AppLayout';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ProfilePage from './pages/ProfilePage';
 import StudentDashboard from './pages/student/StudentDashboard';
 import NoteViewerPage from './pages/student/NoteViewerPage';
 import QuizPage from './pages/student/QuizPage';
@@ -16,7 +18,7 @@ import { useAuthStore } from './store/authStore';
 
 function RootRedirect() {
   const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <LandingPage />;
   if (user?.role === 'PROFESSOR') return <Navigate to="/professor" replace />;
   return <Navigate to="/student" replace />;
 }
@@ -26,9 +28,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* 공개 라우트 */}
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-        <Route path="/" element={<RootRedirect />} />
 
         {/* 학생 전용 */}
         <Route element={<ProtectedRoute requiredRole="STUDENT" />}>
@@ -38,6 +40,7 @@ export default function App() {
             <Route path="/student/quiz/:lectureId" element={<QuizPage />} />
             <Route path="/student/quiz/result/:quizSetId" element={<QuizResultPage />} />
             <Route path="/student/learning" element={<LearningPathPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>
 
@@ -49,6 +52,7 @@ export default function App() {
             <Route path="/professor/notes/:lectureId" element={<NoteViewerPage />} />
             <Route path="/professor/analysis/:lectureId" element={<AnalysisReportPage />} />
             <Route path="/professor/analyses" element={<AnalysisListPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>
 

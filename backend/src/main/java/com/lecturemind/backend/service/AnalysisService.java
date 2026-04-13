@@ -1,6 +1,6 @@
 package com.lecturemind.backend.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lecturemind.backend.common.dto.PageResponse;
 import com.lecturemind.backend.common.exception.ForbiddenException;
@@ -16,17 +16,17 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfWriter;
 
-import java.awt.*;
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.List;
@@ -59,7 +59,7 @@ public class AnalysisService {
     private final AnalysisRepository analysisRepository;
     private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
-    private final ClaudeApiClient claudeApiClient;
+    private final AnalysisAsyncRunner asyncRunner;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -78,6 +78,7 @@ public class AnalysisService {
         if (lecture.getStatus() != LectureStatus.COMPLETED) {
             throw new IllegalArgumentException("STT가 완료된 강의만 분석할 수 있습니다.");
         }
+
         // 기존 분석이 있으면 초기화 후 재분석, 없으면 새로 생성
         Analysis analysis = analysisRepository.findByLectureIdAndUserId(lecture.getId(), userId)
                 .map(existing -> { existing.reset(); return analysisRepository.save(existing); })
@@ -86,39 +87,23 @@ public class AnalysisService {
                         .user(user)
                         .build()));
 
-        analyzeAsync(analysis.getId(), lecture.getTranscript());
+        Long analysisId = analysis.getId();
+        String transcript = lecture.getTranscript();
 
-        log.info("강의 분석 요청 완료: analysisId={}", analysis.getId());
+        // 트랜잭션 커밋 후 비동기 분석 시작 (커밋 전 호출 시 async 스레드가 미커밋 데이터를 못 읽는 문제 방지)
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                asyncRunner.analyzeAsync(analysisId, transcript, SYSTEM_PROMPT);
+            }
+        });
+
+        log.info("강의 분석 요청 완료: analysisId={}", analysisId);
         return AnalysisGenerateResponse.builder()
-                .analysisId(analysis.getId())
+                .analysisId(analysisId)
                 .lectureId(lecture.getId())
                 .status("ANALYZING")
                 .build();
-    }
-
-    @Async("taskExecutor")
-    @Transactional
-    public void analyzeAsync(Long analysisId, String transcript) {
-        log.info("강의 분석 시작: analysisId={}", analysisId);
-        Analysis analysis = analysisRepository.findById(analysisId)
-                .orElseThrow(() -> new EntityNotFoundException("분석을 찾을 수 없습니다."));
-        try {
-            String response = claudeApiClient.sendMessage(SYSTEM_PROMPT, transcript);
-            String cleanJson = extractJson(response);
-            JsonNode root = objectMapper.readTree(cleanJson);
-
-            String summaryJson = objectMapper.writeValueAsString(root.get("summary"));
-            String timelineJson = objectMapper.writeValueAsString(root.get("difficultyTimeline"));
-            String improvementsJson = objectMapper.writeValueAsString(root.get("improvements"));
-
-            analysis.complete(summaryJson, timelineJson, improvementsJson);
-            analysisRepository.save(analysis);
-            log.info("강의 분석 완료: analysisId={}", analysisId);
-        } catch (Exception e) {
-            log.error("강의 분석 실패: analysisId={}, error={}", analysisId, e.getMessage(), e);
-            analysis.fail();
-            analysisRepository.save(analysis);
-        }
     }
 
     @Transactional(readOnly = true)
@@ -142,85 +127,88 @@ public class AnalysisService {
             PdfWriter.getInstance(document, baos);
             document.open();
 
-            // 한글 폰트 설정 (NanumGothic 없으면 Helvetica 폴백)
-            Font titleFont;
-            Font headingFont;
-            Font bodyFont;
-            try (InputStream fontStream = getClass().getResourceAsStream("/fonts/NanumGothic.ttf")) {
-                if (fontStream != null) {
-                    BaseFont bf = BaseFont.createFont("/fonts/NanumGothic.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                    titleFont   = new Font(bf, 18, Font.BOLD);
-                    headingFont = new Font(bf, 13, Font.BOLD);
-                    bodyFont    = new Font(bf, 10, Font.NORMAL);
-                } else {
-                    titleFont   = new Font(Font.HELVETICA, 18, Font.BOLD);
-                    headingFont = new Font(Font.HELVETICA, 13, Font.BOLD);
-                    bodyFont    = new Font(Font.HELVETICA, 10, Font.NORMAL);
+            // 한글 폰트 (클래스패스 NanumGothic.ttf → 없으면 Helvetica 폴백)
+            BaseFont koreanBf = null;
+            try (InputStream fs = getClass().getResourceAsStream("/fonts/NanumGothic.ttf")) {
+                if (fs != null) {
+                    byte[] fontBytes = fs.readAllBytes();
+                    koreanBf = BaseFont.createFont("NanumGothic.ttf",
+                            BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
                 }
+            } catch (Exception e) {
+                log.warn("Korean font load failed, using Helvetica: {}", e.getMessage());
+            }
+
+            final Font titleFont, headingFont, bodyFont, highFont;
+            if (koreanBf != null) {
+                titleFont   = new Font(koreanBf, 18, Font.BOLD);
+                headingFont = new Font(koreanBf, 13, Font.BOLD);
+                bodyFont    = new Font(koreanBf, 10, Font.NORMAL);
+                highFont    = new Font(koreanBf, 10, Font.BOLD, Color.RED);
+            } else {
+                titleFont   = new Font(Font.HELVETICA, 18, Font.BOLD);
+                headingFont = new Font(Font.HELVETICA, 13, Font.BOLD);
+                bodyFont    = new Font(Font.HELVETICA, 10, Font.NORMAL);
+                highFont    = new Font(Font.HELVETICA, 10, Font.BOLD, Color.RED);
             }
 
             // 제목
-            Paragraph title = new Paragraph("LectureMind 강의 분석 리포트", titleFont);
+            Paragraph title = new Paragraph("LectureMind Analysis Report", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             title.setSpacingAfter(20);
             document.add(title);
 
             // 강의 정보
-            document.add(new Paragraph("강의: " + analysis.getLecture().getTitle(), headingFont));
-            document.add(new Paragraph("상태: " + analysis.getStatus(), bodyFont));
-            document.add(new Paragraph("생성일: " + analysis.getCreatedAt(), bodyFont));
+            document.add(new Paragraph("Lecture: " + analysis.getLecture().getTitle(), headingFont));
+            document.add(new Paragraph("Status: " + analysis.getStatus(), bodyFont));
+            document.add(new Paragraph("Created: " + analysis.getCreatedAt(), bodyFont));
             document.add(Chunk.NEWLINE);
 
             // 요약
             if (analysis.getSummary() != null) {
-                document.add(new Paragraph("강의 요약", headingFont));
+                document.add(new Paragraph("Summary", headingFont));
                 try {
                     Map<String, Object> summary = objectMapper.readValue(
                             analysis.getSummary(), new TypeReference<>() {});
-                    summary.forEach((k, v) ->
-                            addParagraphSafe(document, "  " + k + ": " + v, bodyFont));
+                    summary.forEach((k, v) -> addSafe(document, "  " + k + ": " + v, bodyFont));
                 } catch (Exception e) {
-                    document.add(new Paragraph(analysis.getSummary(), bodyFont));
+                    addSafe(document, analysis.getSummary(), bodyFont);
                 }
                 document.add(Chunk.NEWLINE);
             }
 
-            // 난이도 타임라인
+            // 난이도 타임라인 (time/difficulty 필드명, startTime/difficultyScore 폴백)
             if (analysis.getDifficultyTimeline() != null) {
-                document.add(new Paragraph("난이도 타임라인", headingFont));
+                document.add(new Paragraph("Difficulty Timeline", headingFont));
                 try {
                     List<Map<String, Object>> timeline = objectMapper.readValue(
                             analysis.getDifficultyTimeline(), new TypeReference<>() {});
                     for (Map<String, Object> item : timeline) {
-                        String line = String.format("  [%s ~ %s] 난이도: %s  %s",
-                                item.get("startTime"), item.get("endTime"),
-                                item.get("difficultyScore"), item.getOrDefault("description", ""));
-                        document.add(new Paragraph(line, bodyFont));
+                        Object time = item.getOrDefault("time", item.get("startTime"));
+                        Object diff = item.getOrDefault("difficulty", item.get("difficultyScore"));
+                        Object desc = item.getOrDefault("description", "");
+                        addSafe(document, String.format("  [%s] difficulty: %s  %s", time, diff, desc), bodyFont);
                     }
                 } catch (Exception e) {
-                    document.add(new Paragraph(analysis.getDifficultyTimeline(), bodyFont));
+                    addSafe(document, analysis.getDifficultyTimeline(), bodyFont);
                 }
                 document.add(Chunk.NEWLINE);
             }
 
             // 개선 제안
             if (analysis.getImprovements() != null) {
-                document.add(new Paragraph("개선 제안", headingFont));
+                document.add(new Paragraph("Improvement Suggestions", headingFont));
                 try {
                     List<Map<String, Object>> improvements = objectMapper.readValue(
                             analysis.getImprovements(), new TypeReference<>() {});
                     for (Map<String, Object> item : improvements) {
                         String priority = String.valueOf(item.getOrDefault("priority", ""));
-                        Font itemFont = "HIGH".equals(priority)
-                                ? new Font(bodyFont.getBaseFont(), 10, Font.BOLD, Color.RED)
-                                : bodyFont;
-                        document.add(new Paragraph(
-                                "  [" + priority + "] " + item.getOrDefault("issue", ""), itemFont));
-                        document.add(new Paragraph(
-                                "  → " + item.getOrDefault("suggestion", ""), bodyFont));
+                        Font itemFont = "HIGH".equals(priority) ? highFont : bodyFont;
+                        addSafe(document, "  [" + priority + "] " + item.getOrDefault("issue", ""), itemFont);
+                        addSafe(document, "  -> " + item.getOrDefault("suggestion", ""), bodyFont);
                     }
                 } catch (Exception e) {
-                    document.add(new Paragraph(analysis.getImprovements(), bodyFont));
+                    addSafe(document, analysis.getImprovements(), bodyFont);
                 }
             }
 
@@ -232,7 +220,7 @@ public class AnalysisService {
         }
     }
 
-    private void addParagraphSafe(Document document, String text, Font font) {
+    private void addSafe(Document document, String text, Font font) {
         try {
             document.add(new Paragraph(text, font));
         } catch (DocumentException e) {
@@ -247,12 +235,5 @@ public class AnalysisService {
             throw new ForbiddenException("접근 권한이 없습니다.");
         }
         return analysis;
-    }
-
-    private String extractJson(String response) {
-        response = response.trim();
-        int start = response.indexOf('{');
-        int end = response.lastIndexOf('}');
-        return (start != -1 && end != -1) ? response.substring(start, end + 1) : response;
     }
 }

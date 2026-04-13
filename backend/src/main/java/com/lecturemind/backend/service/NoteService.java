@@ -3,6 +3,7 @@ package com.lecturemind.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lecturemind.backend.common.dto.PageResponse;
+import com.lecturemind.backend.common.exception.DuplicateException;
 import com.lecturemind.backend.common.exception.ForbiddenException;
 import com.lecturemind.backend.domain.*;
 import com.lecturemind.backend.dto.request.NoteGenerateRequest;

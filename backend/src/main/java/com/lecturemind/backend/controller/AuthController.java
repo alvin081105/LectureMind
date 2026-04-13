@@ -1,8 +1,11 @@
 package com.lecturemind.backend.controller;
 
+import com.lecturemind.backend.dto.request.ChangePasswordRequest;
+import com.lecturemind.backend.dto.request.DeleteAccountRequest;
 import com.lecturemind.backend.dto.request.LoginRequest;
 import com.lecturemind.backend.dto.request.RefreshRequest;
 import com.lecturemind.backend.dto.request.SignupRequest;
+import com.lecturemind.backend.dto.request.UpdateProfileRequest;
 import com.lecturemind.backend.dto.response.LoginResponse;
 import com.lecturemind.backend.dto.response.SignupResponse;
 import com.lecturemind.backend.dto.response.TokenResponse;
@@ -48,4 +51,22 @@ public class AuthController {
     public ResponseEntity<SignupResponse> me() {
         return ResponseEntity.ok(authService.getMe(SecurityUtil.getCurrentUserId()));
     }
+
+    @PutMapping("/profile")
+    public ResponseEntity<SignupResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(authService.updateProfile(SecurityUtil.getCurrentUserId(), request));
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(SecurityUtil.getCurrentUserId(), request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
+        authService.deleteAccount(SecurityUtil.getCurrentUserId(), request);
+        return ResponseEntity.noContent().build();
+    }
+
 }

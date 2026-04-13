@@ -3,9 +3,12 @@ package com.lecturemind.backend.service;
 import com.lecturemind.backend.common.exception.DuplicateException;
 import com.lecturemind.backend.common.exception.UnauthorizedException;
 import com.lecturemind.backend.domain.User;
+import com.lecturemind.backend.dto.request.ChangePasswordRequest;
+import com.lecturemind.backend.dto.request.DeleteAccountRequest;
 import com.lecturemind.backend.dto.request.LoginRequest;
 import com.lecturemind.backend.dto.request.RefreshRequest;
 import com.lecturemind.backend.dto.request.SignupRequest;
+import com.lecturemind.backend.dto.request.UpdateProfileRequest;
 import com.lecturemind.backend.dto.response.LoginResponse;
 import com.lecturemind.backend.dto.response.SignupResponse;
 import com.lecturemind.backend.dto.response.TokenResponse;
@@ -104,5 +107,34 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
         return SignupResponse.from(user);
+    }
+
+    @Transactional
+    public SignupResponse updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        user.updateName(request.getName());
+        return SignupResponse.from(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new UnauthorizedException("현재 비밀번호가 올바르지 않습니다.");
+        }
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(Long userId, DeleteAccountRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("비밀번호가 올바르지 않습니다.");
+        }
+        userRepository.delete(user);
     }
 }

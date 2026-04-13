@@ -9,9 +9,9 @@ export default function LoadingSpinner({ size = 'md', message }: LoadingSpinnerP
   return (
     <div className="flex flex-col items-center justify-center gap-3">
       <div
-        className={`${sizeClasses[size]} border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin`}
+        className={`${sizeClasses[size]} border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin`}
       />
-      {message && <p className="text-sm text-gray-500">{message}</p>}
+      {message && <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>}
     </div>
   );
 }
