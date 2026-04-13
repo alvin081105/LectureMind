@@ -15,6 +15,7 @@ export default function AnalysisReportPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [selectedImprovement, setSelectedImprovement] = useState<Improvement | null>(null);
 
   const fetchAnalysis = async () => {
@@ -52,6 +53,24 @@ export default function AnalysisReportPage() {
     }
   };
 
+  const handleExport = async () => {
+    if (!analysis) return;
+    setExporting(true);
+    try {
+      const res = await analysisApi.exportPdf(analysis.analysisId);
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `분석리포트_${lectureId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('PDF 내보내기에 실패했습니다.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center py-24"><LoadingSpinner message="분석 리포트를 불러오는 중..." /></div>;
   }
@@ -63,6 +82,18 @@ export default function AnalysisReportPage() {
           <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-800">← 뒤로</button>
           <h2 className="text-xl font-bold text-gray-800">강의 맹점 진단 리포트</h2>
         </div>
+        {analysis?.status === 'COMPLETED' && (
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            {exporting ? 'PDF 생성 중...' : 'PDF 내보내기'}
+          </button>
+        )}
       </div>
 
       {!analysis || analysis.status === 'FAILED' ? (

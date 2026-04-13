@@ -3,7 +3,6 @@ package com.lecturemind.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lecturemind.backend.common.dto.PageResponse;
-import com.lecturemind.backend.common.exception.DuplicateException;
 import com.lecturemind.backend.common.exception.ForbiddenException;
 import com.lecturemind.backend.domain.*;
 import com.lecturemind.backend.dto.request.NoteGenerateRequest;
@@ -50,9 +49,7 @@ public class NoteService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
 
-        if (user.getRole() != Role.STUDENT) {
-            throw new ForbiddenException("학생만 노트를 생성할 수 있습니다.");
-        }
+        // 학생과 교수 모두 노트 생성 가능
 
         Lecture lecture = lectureRepository.findById(request.getLectureId())
                 .orElseThrow(() -> new EntityNotFoundException("강의를 찾을 수 없습니다."));

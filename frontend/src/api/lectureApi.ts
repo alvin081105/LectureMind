@@ -1,5 +1,5 @@
 import axiosInstance from './axiosInstance';
-import type { Lecture, LectureStatusResponse, PageResponse } from '../types';
+import type { Lecture, LectureDetailResponse, LectureStatusResponse, PageResponse } from '../types';
 
 export const lectureApi = {
   upload: (formData: FormData, onProgress?: (percent: number) => void) =>
@@ -13,8 +13,8 @@ export const lectureApi = {
   getList: (page = 0, size = 20) =>
     axiosInstance.get<PageResponse<Lecture>>('/lectures', { params: { page, size } }),
 
-  getById: (lectureId: number) =>
-    axiosInstance.get<Lecture>(`/lectures/${lectureId}`),
+  getDetail: (lectureId: number) =>
+    axiosInstance.get<LectureDetailResponse>(`/lectures/${lectureId}`),
 
   getStatus: (lectureId: number) =>
     axiosInstance.get<LectureStatusResponse>(`/lectures/${lectureId}/status`),

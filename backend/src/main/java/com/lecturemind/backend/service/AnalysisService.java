@@ -3,7 +3,6 @@ package com.lecturemind.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lecturemind.backend.common.dto.PageResponse;
-import com.lecturemind.backend.common.exception.DuplicateException;
 import com.lecturemind.backend.common.exception.ForbiddenException;
 import com.lecturemind.backend.domain.*;
 import com.lecturemind.backend.dto.request.AnalysisGenerateRequest;
@@ -79,14 +78,13 @@ public class AnalysisService {
         if (lecture.getStatus() != LectureStatus.COMPLETED) {
             throw new IllegalArgumentException("STT가 완료된 강의만 분석할 수 있습니다.");
         }
-        if (analysisRepository.existsByLectureIdAndUserId(lecture.getId(), userId)) {
-            throw new DuplicateException("이미 해당 강의의 분석이 존재합니다.");
-        }
-
-        Analysis analysis = analysisRepository.save(Analysis.builder()
-                .lecture(lecture)
-                .user(user)
-                .build());
+        // 기존 분석이 있으면 초기화 후 재분석, 없으면 새로 생성
+        Analysis analysis = analysisRepository.findByLectureIdAndUserId(lecture.getId(), userId)
+                .map(existing -> { existing.reset(); return analysisRepository.save(existing); })
+                .orElseGet(() -> analysisRepository.save(Analysis.builder()
+                        .lecture(lecture)
+                        .user(user)
+                        .build()));
 
         analyzeAsync(analysis.getId(), lecture.getTranscript());
 

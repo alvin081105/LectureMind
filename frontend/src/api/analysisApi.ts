@@ -21,4 +21,7 @@ export const analysisApi = {
     const detailRes = await axiosInstance.get<Analysis>(`/analysis/${found.analysisId}`);
     return detailRes.data;
   },
+
+  exportPdf: (analysisId: number) =>
+    axiosInstance.get<Blob>(`/analysis/${analysisId}/export`, { responseType: 'blob' }),
 };

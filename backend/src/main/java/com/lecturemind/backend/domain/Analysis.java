@@ -58,4 +58,11 @@ public class Analysis {
     public void fail() {
         this.status = AnalysisStatus.FAILED;
     }
+
+    public void reset() {
+        this.summary = null;
+        this.difficultyTimeline = null;
+        this.improvements = null;
+        this.status = AnalysisStatus.ANALYZING;
+    }
 }

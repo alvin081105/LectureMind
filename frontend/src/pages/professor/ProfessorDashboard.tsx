@@ -201,7 +201,12 @@ export default function ProfessorDashboard() {
               <div key={lecture.lectureId} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{lecture.title}</p>
+                    <Link
+                      to={`/professor/lecture/${lecture.lectureId}`}
+                      className="text-sm font-medium text-gray-800 hover:text-indigo-600 truncate block transition-colors"
+                    >
+                      {lecture.title}
+                    </Link>
                     <p className="text-xs text-gray-400 mt-1">{formatDateTime(lecture.createdAt)}</p>
                     {lecture.duration && <p className="text-xs text-gray-400">{lecture.duration}</p>}
                     {lecture.fileSize && <p className="text-xs text-gray-300">{lecture.fileSize}</p>}

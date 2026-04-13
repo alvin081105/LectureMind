@@ -9,7 +9,9 @@ import QuizPage from './pages/student/QuizPage';
 import QuizResultPage from './pages/student/QuizResultPage';
 import LearningPathPage from './pages/student/LearningPathPage';
 import ProfessorDashboard from './pages/professor/ProfessorDashboard';
+import ProfessorLectureDetailPage from './pages/professor/ProfessorLectureDetailPage';
 import AnalysisReportPage from './pages/professor/AnalysisReportPage';
+import AnalysisListPage from './pages/professor/AnalysisListPage';
 import { useAuthStore } from './store/authStore';
 
 function RootRedirect() {
@@ -43,7 +45,10 @@ export default function App() {
         <Route element={<ProtectedRoute requiredRole="PROFESSOR" />}>
           <Route element={<AppLayout />}>
             <Route path="/professor" element={<ProfessorDashboard />} />
+            <Route path="/professor/lecture/:lectureId" element={<ProfessorLectureDetailPage />} />
+            <Route path="/professor/notes/:lectureId" element={<NoteViewerPage />} />
             <Route path="/professor/analysis/:lectureId" element={<AnalysisReportPage />} />
+            <Route path="/professor/analyses" element={<AnalysisListPage />} />
           </Route>
         </Route>
 

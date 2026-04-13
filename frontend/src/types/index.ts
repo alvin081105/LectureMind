@@ -48,6 +48,19 @@ export interface Lecture {
   createdAt: string;
 }
 
+// 백엔드 LectureDetailResponse
+export interface LectureDetailResponse {
+  lectureId: number;
+  title: string;
+  status: LectureStatus;
+  transcript?: string;
+  duration?: string;
+  fileSize?: string;
+  createdAt: string;
+  hasNote: boolean;
+  hasAnalysis: boolean;
+}
+
 // 백엔드 LectureStatusResponse
 export interface LectureStatusResponse {
   lectureId: number;
