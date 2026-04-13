@@ -69,7 +69,9 @@ export default function QuizPage() {
     if (currentIndex + 1 >= quizSet.quizzes.length) {
       try {
         const res = await quizApi.submit(quizSet.quizSetId, answers);
-        navigate(`/student/quiz/result/${quizSet.quizSetId}`, { state: { result: res.data } });
+        navigate(`/student/quiz/result/${quizSet.quizSetId}`, {
+          state: { result: res.data, quizzes: quizSet.quizzes },
+        });
       } catch {
         alert('결과 제출에 실패했습니다.');
       }
@@ -98,7 +100,7 @@ export default function QuizPage() {
           {/* 블룸 레벨 */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-3">블룸 레벨 선택</p>
-            <BloomFilter selected={selectedLevels} onChange={setSelectedLevels} />
+            <BloomFilter selected={selectedLevels} onChange={setSelectedLevels} layout="row" />
           </div>
 
           {/* 문제 수 */}

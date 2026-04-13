@@ -3,12 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import RadarChart from '../../components/quiz/RadarChart';
 import BloomBadge from '../../components/common/BloomBadge';
 import { BLOOM_COLORS, BLOOM_LEVELS } from '../../constants/bloomColors';
-import type { QuizResult } from '../../types';
+import type { Quiz, QuizResult } from '../../types';
 
 export default function QuizResultPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const result: QuizResult = state?.result;
+  const quizzes: Quiz[] = state?.quizzes ?? [];
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   if (!result) {
@@ -18,10 +19,12 @@ export default function QuizResultPage() {
 
   const wrongAnswers = result.results?.filter((r) => !r.isCorrect) ?? [];
   const score = Math.round(result.scorePercent);
-  const grade = score >= 90 ? { label: '우수', color: 'text-green-600', bg: 'bg-green-50' }
-    : score >= 70 ? { label: '양호', color: 'text-blue-600', bg: 'bg-blue-50' }
-    : score >= 50 ? { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-50' }
-    : { label: '부족', color: 'text-red-600', bg: 'bg-red-50' };
+  const grade = score >= 90 ? { label: '우수', color: 'text-green-600', bg: 'bg-green-50 border-green-200' }
+    : score >= 70 ? { label: '양호', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' }
+    : score >= 50 ? { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' }
+    : { label: '부족', color: 'text-red-600', bg: 'bg-red-50 border-red-200' };
+
+  const quizMap = new Map(quizzes.map((q) => [q.quizId, q]));
 
   const toggleExpand = (id: number) => {
     setExpandedIds((prev) => {
@@ -40,7 +43,7 @@ export default function QuizResultPage() {
 
       {/* 총점 카드 */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
-        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${grade.bg} ${grade.color}`}>
+        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 border ${grade.bg} ${grade.color}`}>
           {grade.label}
         </div>
         <p className={`text-6xl font-bold mb-2 ${grade.color}`}>{score}점</p>
@@ -99,48 +102,71 @@ export default function QuizResultPage() {
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-semibold text-gray-700">오답 노트</h3>
-            <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">
-              {wrongAnswers.length}개
+            <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium border border-red-100">
+              {wrongAnswers.length}개 오답
             </span>
           </div>
           <div className="space-y-3">
             {wrongAnswers.map((item, idx) => {
-              const quiz = result.results.find((r) => r.quizId === item.quizId);
-              if (!quiz) return null;
+              const quiz = quizMap.get(item.quizId);
               const isExpanded = expandedIds.has(item.quizId);
-              // quizSet의 문제 정보에서 bloomLevel을 가져올 수 없으므로 번호만 표시
               return (
                 <div key={item.quizId} className="border border-red-100 rounded-xl overflow-hidden">
                   <button
-                    className="w-full text-left p-4 flex items-start justify-between gap-3 hover:bg-red-50 transition-colors"
+                    className="w-full text-left p-4 flex items-start justify-between gap-3 hover:bg-red-50/50 transition-colors"
                     onClick={() => toggleExpand(item.quizId)}
                   >
                     <div className="flex items-start gap-2 min-w-0">
                       <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center">
                         {idx + 1}
                       </span>
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-700 font-medium leading-snug line-clamp-2">
-                          {/* 문제 텍스트는 result에 없어서 내 답 → 정답으로만 표시 */}
-                          내 답: <span className="text-red-500">{item.userAnswer || '(무응답)'}</span>
-                          <span className="mx-1 text-gray-300">→</span>
-                          정답: <span className="text-green-600">{item.correctAnswer}</span>
+                      <div className="min-w-0 space-y-1">
+                        {quiz && (
+                          <div className="flex items-center gap-2">
+                            <BloomBadge level={quiz.bloomLevel} size="sm" />
+                          </div>
+                        )}
+                        <p className="text-sm text-gray-800 font-medium leading-snug">
+                          {quiz?.question ?? `문제 #${item.quizId}`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          내 답: <span className="text-red-500 font-medium">{item.userAnswer || '(무응답)'}</span>
+                          <span className="mx-1">→</span>
+                          정답: <span className="text-green-600 font-medium">{item.correctAnswer}</span>
                         </p>
                       </div>
                     </div>
                     <svg
-                      className={`w-4 h-4 text-gray-400 shrink-0 mt-0.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      className={`w-4 h-4 text-gray-400 shrink-0 mt-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {isExpanded && (
-                    <div className="px-4 pb-4 pt-0 space-y-2">
-                      {item.feedback && (
-                        <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded-lg">{item.feedback}</p>
+                    <div className="px-4 pb-4 space-y-2 border-t border-red-100 pt-3">
+                      {/* 객관식이면 선택지 표시 */}
+                      {quiz?.options && (
+                        <div className="space-y-1 mb-2">
+                          {quiz.options.map((opt, i) => (
+                            <p key={i} className={`text-xs px-2 py-1 rounded ${
+                              opt === item.correctAnswer
+                                ? 'bg-green-50 text-green-700 font-medium'
+                                : opt === item.userAnswer
+                                ? 'bg-red-50 text-red-600 line-through'
+                                : 'text-gray-500'
+                            }`}>
+                              {String.fromCharCode(9312 + i)} {opt}
+                            </p>
+                          ))}
+                        </div>
                       )}
-                      <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg leading-relaxed">
+                      {item.feedback && (
+                        <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                          💬 {item.feedback}
+                        </p>
+                      )}
+                      <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg leading-relaxed border border-gray-100">
                         <span className="font-semibold text-gray-700">해설: </span>{item.explanation}
                       </div>
                     </div>

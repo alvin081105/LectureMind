@@ -54,7 +54,7 @@ public class AnalysisService {
             반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이 JSON만).
 
             출력 형식:
-            {"summary":{"topic":"","duration":"","totalConcepts":0,"bloomDistribution":{"REMEMBER":0.0,"UNDERSTAND":0.0,"APPLY":0.0,"ANALYZE":0.0,"EVALUATE":0.0,"CREATE":0.0}},"difficultyTimeline":[{"startTime":"","endTime":"","difficultyScore":0.0,"type":null,"description":""}],"improvements":[{"targetSection":"","startTime":"","issue":"","suggestion":"","priority":"HIGH"}]}
+            {"summary":{"topic":"","duration":"","conceptCount":0,"bloomDistribution":{"REMEMBER":0.0,"UNDERSTAND":0.0,"APPLY":0.0,"ANALYZE":0.0,"EVALUATE":0.0,"CREATE":0.0}},"difficultyTimeline":[{"time":"00:00","difficulty":0.0,"issueType":null}],"improvements":[{"id":"1","targetSection":"","startTime":"","endTime":"","issueType":"DIFFICULTY_SPIKE","issue":"","suggestion":"","priority":"HIGH"}]}
             """;
 
     private final AnalysisRepository analysisRepository;

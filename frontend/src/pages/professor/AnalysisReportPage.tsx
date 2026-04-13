@@ -4,6 +4,7 @@ import DifficultyTimeline from '../../components/analysis/DifficultyTimeline';
 import BloomPieChart from '../../components/analysis/BloomPieChart';
 import ImprovementCard from '../../components/analysis/ImprovementCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import AILoader, { ANALYSIS_MESSAGES } from '../../components/common/AILoader';
 import { analysisApi } from '../../api/analysisApi';
 import { usePolling } from '../../hooks/usePolling';
 import type { Analysis, Improvement } from '../../types';
@@ -77,9 +78,7 @@ export default function AnalysisReportPage() {
           </button>
         </div>
       ) : analysis.status === 'ANALYZING' ? (
-        <div className="flex justify-center py-24">
-          <LoadingSpinner message="AI가 강의를 분석하고 있습니다... (최대 2분 소요)" />
-        </div>
+        <AILoader title="AI 강의 분석 중" messages={ANALYSIS_MESSAGES} />
       ) : (
         <div className="space-y-6">
           {/* 요약 카드 */}
@@ -128,9 +127,9 @@ export default function AnalysisReportPage() {
                 AI 개선 제안 ({analysis.improvements.length}건)
               </h3>
               <div className="grid gap-3 sm:grid-cols-2">
-                {analysis.improvements.map((imp) => (
+                {analysis.improvements.map((imp, idx) => (
                   <ImprovementCard
-                    key={imp.id}
+                    key={imp.id ?? idx}
                     improvement={imp}
                     onClick={() => setSelectedImprovement(imp)}
                   />
