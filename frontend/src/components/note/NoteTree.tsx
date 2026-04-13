@@ -7,11 +7,15 @@ import type { BloomLevel, Note } from '../../types';
 
 interface NoteTreeProps {
   note: Note;
+  highlightKeyword?: string;
 }
 
-export default function NoteTree({ note }: NoteTreeProps) {
+export default function NoteTree({ note, highlightKeyword = '' }: NoteTreeProps) {
   const [selectedLevels, setSelectedLevels] = useState<BloomLevel[]>([...BLOOM_LEVELS]);
   const [selectedKeyword, setSelectedKeyword] = useState('');
+
+  // 외부 검색어와 키워드 패널 선택을 합쳐서 하이라이트
+  const activeHighlight = highlightKeyword || selectedKeyword;
 
   // 백엔드 응답: note.sections (content 아님)
   const sections = Array.isArray(note.sections) ? note.sections : [];
@@ -35,7 +39,7 @@ export default function NoteTree({ note }: NoteTreeProps) {
               <NoteSection
                 key={section.id}
                 section={section}
-                highlightKeyword={selectedKeyword}
+                highlightKeyword={activeHighlight}
               />
             ))
           )}

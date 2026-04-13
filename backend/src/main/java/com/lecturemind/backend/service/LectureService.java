@@ -148,13 +148,13 @@ public class LectureService {
     }
 
     private String saveFile(MultipartFile file, Long userId, Long lectureId) throws IOException {
-        Path dir = Paths.get(uploadDir, String.valueOf(userId), String.valueOf(lectureId));
+        Path dir = Paths.get(uploadDir, String.valueOf(userId), String.valueOf(lectureId)).toAbsolutePath();
         Files.createDirectories(dir);
 
         String extension = getExtension(file.getOriginalFilename());
         String filename = UUID.randomUUID() + "." + extension;
         Path filePath = dir.resolve(filename);
-        file.transferTo(filePath.toFile());
+        Files.copy(file.getInputStream(), filePath);
 
         return filePath.toString();
     }
